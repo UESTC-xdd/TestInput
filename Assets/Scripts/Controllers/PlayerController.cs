@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.U2D;
 using UnityEngine.InputSystem;
+using System;
+using UnityEngine.UI;
 
 public class PlayerController : MonoBehaviour
 {
@@ -24,6 +26,12 @@ public class PlayerController : MonoBehaviour
     private Animator playerAnim;
     private SpriteRenderer playerSpriteRenderer;
 
+    private BoxCollider2D playerCol;
+    private Vector2 standColOffset = new Vector2(0, 0);
+    private Vector2 standColSize = new Vector2(0.875f, 1.25f);
+    private Vector2 crouchColOffset = new Vector2(0, -0.1875f);
+    private Vector2 crouchColSize = new Vector2(0.875f, 0.875f);
+
     private Vector2 inputMove;
 
     private float jumpSpeed;
@@ -34,7 +42,7 @@ public class PlayerController : MonoBehaviour
     private int Anim_IsLookingUp;
     private int Anim_IsUping;
     private int Anim_IsFalling;
-    private int Anim_Horizontal;
+    //private int Anim_Horizontal;
     private int Anim_IsGrounded;
 
     private bool IsJumping;
@@ -45,39 +53,120 @@ public class PlayerController : MonoBehaviour
 
     public bool IsFacingRight { get; set; }
 
+    public bool CanJump { get; set; }
+
+    private Timer timer;
+    private Timer timer2;
+    private Timer timer3;
+    private Timer timer4;
+    private bool respEnabled;
+    [Header("宽容度输入")]
+    public float fallRespTime;
+    public float inputBufferTime;
+
     private void Awake()
     {
         input = GetComponent<PlayerInput>();
         playerRigid = GetComponent<Rigidbody2D>();
         playerAnim = GetComponent<Animator>();
         playerSpriteRenderer = GetComponent<SpriteRenderer>();
+        playerCol = GetComponent<BoxCollider2D>();
 
         IsFacingRight = true;
 
         InitInput();
         InitAnim();
 
-        //jumpSpeed = Mathf.Sqrt(2 * playerRigid.gravityScale * -Physics2D.gravity.y * JumpHeight);
+        jumpSpeed = Mathf.Sqrt(2 * playerRigid.gravityScale * -Physics2D.gravity.y * JumpHeight);
     }
 
     private void Update()
     {
+        UpdateGroundedState();
+        UpdateCanJumpState();
         ReadInput();
         UpdateAnim();
-        UpdateGroundedState();
+
+        //Update宽容度输入状态
+        UpdateRespState();
+    }
+
+    private void UpdateRespState()
+    {
+        respEnabled = UIMgr.Instance.RespControlToggle.isOn;
     }
 
     private void FixedUpdate()
     {
         PlayerLocomotion();
+        UpdateTrail();
     }
+
+    #region 轨迹逻辑
+    private void UpdateTrail()
+    {
+        if(UIMgr.Instance.ShowTrailToggle.isOn)
+        {
+            if (playerRigid.velocity.magnitude > 0.1f) {
+                if (timer2 == null)
+                {
+                    timer2 = Util.Instance.BeginTimer(0.1f);
+                    timer2.OnCountStop += GenerateOneTrail;
+                }
+                if(!timer2.IsCounting)
+                {
+                    timer2.ResetTimer(0.1f);
+                }
+            }
+        }
+        else
+        {
+            if(timer2!=null)
+            {
+                timer2.Stop();
+            }
+        }
+    }
+
+    private void GenerateOneTrail()
+    {
+        GameObject newTrail = PoolManager.instance.GetFromPool("Trail", transform.position);
+        SpriteRenderer newTrailSprite = newTrail.GetComponent<SpriteRenderer>();
+        newTrailSprite.sprite = playerSpriteRenderer.sprite;
+        newTrailSprite.flipX = playerSpriteRenderer.flipX;
+    }
+    #endregion
 
     private void InitInput()
     {
         //跳跃
         input.actions["Jump"].performed += ctx =>
         {
-            PlayerJump();
+            if(respEnabled)
+            {
+                if (CanJump)
+                {
+                    PlayerJump();
+                }
+                else
+                {
+                    if (timer4 == null)
+                    {
+                        timer4 = Util.Instance.BeginTimer(inputBufferTime);
+                    }
+                    else
+                    {
+
+                    }
+                }
+            }
+            else
+            {
+                if(CanJump)
+                {
+                    PlayerJump();
+                }
+            }
         };
 
         //加速
@@ -100,7 +189,7 @@ public class PlayerController : MonoBehaviour
         Anim_IsLookingUp = Animator.StringToHash("IsLookingUp");
         Anim_IsUping = Animator.StringToHash("IsUping");
         Anim_IsFalling = Animator.StringToHash("IsFalling");
-        Anim_Horizontal = Animator.StringToHash("Horizontal");
+        //Anim_Horizontal = Animator.StringToHash("Horizontal");
         Anim_IsGrounded = Animator.StringToHash("IsGrounded");
     }
 
@@ -130,10 +219,14 @@ public class PlayerController : MonoBehaviour
         if (inputMove.y < 0)
         {
             IsCrouching = true;
+            playerCol.offset = crouchColOffset;
+            playerCol.size = crouchColSize;
         }
         else if (inputMove.y >= 0)
         {
             IsCrouching = false;
+            playerCol.offset = standColOffset;
+            playerCol.size = standColSize;
         }
 
         //朝向
@@ -171,6 +264,7 @@ public class PlayerController : MonoBehaviour
         else if (IsWalking) //水平移动
         {
             float xSpeed = playerRigid.velocity.x;
+            float realXSpeed = Mathf.Abs(xSpeed);
             int xDirect = 1;
 
             if (inputMove.x > 0)
@@ -184,17 +278,31 @@ public class PlayerController : MonoBehaviour
 
             if (IsSprinting && inputMove.x != 0)
             {
-                xSpeed += xDirect * Accelerate * Time.deltaTime;
+                if (Mathf.Sign(xSpeed) != Mathf.Sign(inputMove.x))
+                {
+                    xSpeed += xDirect * (Accelerate + BrakeAccelerate) * Time.deltaTime;
+                }
+                else
+                {
+                    xSpeed += xDirect * Accelerate * Time.deltaTime;
+                }
                 xSpeed = Mathf.Clamp(xSpeed, -SprintSpeed, SprintSpeed);
             }
             else if (!IsSprinting && inputMove.x != 0)
             {
-                if (Mathf.Abs(xSpeed) < WalkSpeed)
+                if (realXSpeed <= WalkSpeed)
                 {
-                    xSpeed += xDirect * Accelerate * Time.deltaTime;
+                    if (Mathf.Sign(xSpeed) != Mathf.Sign(inputMove.x))
+                    {
+                        xSpeed += xDirect * (Accelerate + BrakeAccelerate) * Time.deltaTime;
+                    }
+                    else
+                    {
+                        xSpeed += xDirect * Accelerate * Time.deltaTime;
+                    }
                     xSpeed = Mathf.Clamp(xSpeed, -WalkSpeed, WalkSpeed);
                 }
-                else if (Mathf.Abs(xSpeed) > WalkSpeed)
+                else if (realXSpeed > WalkSpeed)
                 {
                     if (xSpeed < 0)
                     {
@@ -208,7 +316,6 @@ public class PlayerController : MonoBehaviour
 
             }
 
-            Debug.Log(xSpeed);
             playerRigid.velocity = new Vector2(xSpeed, playerRigid.velocity.y);
         }
     }
@@ -262,26 +369,74 @@ public class PlayerController : MonoBehaviour
 
     private void PlayerJump()
     {
-        if (!IsJumping && IsGrounded)
-        {
-            jumpSpeed = Mathf.Sqrt(2 * playerRigid.gravityScale * -Physics2D.gravity.y * JumpHeight);
-            playerRigid.velocity = new Vector2(playerRigid.velocity.x, jumpSpeed);
-            IsJumping = true;
-            AudioMgr.Instance.PlaySEClipOnce(AudioMgr.Instance.SE_Jump);
-        }
+        //jumpSpeed = Mathf.Sqrt(2 * playerRigid.gravityScale * -Physics2D.gravity.y * JumpHeight);
+        playerRigid.velocity = new Vector2(playerRigid.velocity.x, jumpSpeed);
+        IsJumping = true;
+        AudioMgr.Instance.PlaySEClipOnce(AudioMgr.Instance.SE_Jump);
+        timer = Util.Instance.BeginTimer(0.1f);
     }
 
     private void UpdateGroundedState()
     {
-        if (Physics2D.BoxCast(GroundDetectPoint.position, new Vector2(GroundDetectWidth, GroundDetectHeight), 0, transform.right, Mathf.Infinity, GroundLayers))
+        //if (Physics2D.BoxCast(GroundDetectPoint.position, new Vector2(GroundDetectWidth, GroundDetectHeight), 0, transform.right, Mathf.Infinity, GroundLayers))
+        //{
+        //    Debug.Log("在地上");
+        //    IsGrounded = true;
+        //}
+        if (Physics2D.Raycast(GroundDetectPoint.position, -transform.up, GroundDetectHeight, GroundLayers))
         {
-            //Debug.Log("在地上");
             IsGrounded = true;
         }
         else
         {
-            //Debug.Log("不在地上");
             IsGrounded = false;
+        }
+
+    }
+
+    private void UpdateCanJumpState()
+    {
+        if (respEnabled)
+        {
+            if(!IsJumping && !IsGrounded)
+            {
+                if (timer3 == null)
+                {
+                    timer3 = Util.Instance.BeginTimer(fallRespTime);
+                }
+                else
+                {
+                    if (timer3.IsCounting)
+                    {
+                        CanJump = true;
+                    }
+                    else
+                    {
+                        CanJump = false;
+                    }
+                }
+            }
+            else if (!IsJumping && IsGrounded)
+            {
+                CanJump = true;
+                timer3 = null;
+            }
+            else
+            {
+                CanJump = false;
+            }
+        }
+        else
+        {
+            if (!IsJumping && IsGrounded)
+            {
+                CanJump = true;
+                timer3 = null;
+            }
+            else
+            {
+                CanJump = false;
+            }
         }
 
     }
@@ -289,23 +444,44 @@ public class PlayerController : MonoBehaviour
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.green;
-        Gizmos.DrawCube(GroundDetectPoint.position, new Vector3(GroundDetectWidth, GroundDetectHeight, 0));
+        //Gizmos.DrawCube(GroundDetectPoint.position, new Vector3(GroundDetectWidth, GroundDetectHeight, 0));
+        Gizmos.DrawLine(GroundDetectPoint.position, GroundDetectPoint.position - transform.up * GroundDetectHeight);
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if(collision.gameObject.layer==LayerMask.NameToLayer("Ground"))
+        if (collision.gameObject.layer == LayerMask.NameToLayer("Ground"))
         {
-            foreach (ContactPoint2D contactPoint in collision.contacts)
+            if(timer!=null && !timer.IsCounting)
             {
-                Vector2 hitPoint = contactPoint.point;
-                if(hitPoint.y< GroundDetectPoint.position.y)
+                foreach (ContactPoint2D contactPoint in collision.contacts)
                 {
-                    IsJumping = false;
+                    Vector2 hitPoint = contactPoint.point;
+                    if (hitPoint.y < transform.position.y - playerCol.size.y / 2 + 0.01f)
+                    {
+                        IsJumping = false;
+                    }
+                }
+            }
+        }
+    }
+
+    private void OnCollisionStay2D(Collision2D collision)
+    {
+        if (collision.gameObject.layer == LayerMask.NameToLayer("Ground"))
+        {
+            if(timer != null && !timer.IsCounting)
+            {
+                foreach (ContactPoint2D contactPoint in collision.contacts)
+                {
+                    Vector2 hitPoint = contactPoint.point;
+                    if (hitPoint.y < transform.position.y - playerCol.size.y / 2 + 0.01f)
+                    {
+                        IsJumping = false;
+                    }
                 }
             }
 
         }
     }
-
 }

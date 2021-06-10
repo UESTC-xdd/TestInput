@@ -5,13 +5,44 @@ using UnityEngine.Events;
 
 public class Util : MonoBehaviour
 {
-    public List<Timer> Timers = new List<Timer>();
+    private List<Timer> Timers=new List<Timer>();
+
+    private static Util instance;
+    public static Util Instance
+    {
+        get { return instance; }
+    }
+
+    public static bool IsValid
+    {
+        get { return instance != null; }
+    }
+
+    private void Awake()
+    {
+        #region µ¥Àý
+        if (instance == null)
+        {
+            instance = this;
+        }
+        else
+        {
+            if (instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+        }
+
+        DontDestroyOnLoad(gameObject);
+        #endregion
+    }
 
     void Update()
     {
         for (int i = 0; i < Timers.Count; i++)
-        {
-            if(Timers[i].IsCounting)
+        { 
+            if(Timers[i]!=null && Timers[i].IsCounting)
             {
                 if(Timers[i].curTime>0)
                 {
@@ -19,7 +50,7 @@ public class Util : MonoBehaviour
                 }
                 else if(Timers[i].curTime <=0 && Timers[i].IsCounting)
                 {
-                    Timers[i].OnCountStop();
+                    Timers[i].OnCountStop?.Invoke();
                     Timers[i].IsCounting = false;
                 }
             }
@@ -54,5 +85,17 @@ public class Timer
     {
         curTime = countTIme;
         IsCounting = true;
+    }
+
+    public void ResetTimer(float countTime)
+    {
+        curTime = countTime;
+        IsCounting = true;
+    }
+
+    public void Stop()
+    {
+        curTime = 0;
+        IsCounting = false;
     }
 }

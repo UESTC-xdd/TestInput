@@ -17,6 +17,7 @@ public class GameManager : MonoBehaviour
 
     private void Awake()
     {
+        #region µ¥Àý
         if (instance == null)
         {
             instance = this;
@@ -31,5 +32,6 @@ public class GameManager : MonoBehaviour
         }
 
         DontDestroyOnLoad(gameObject);
+        #endregion
     }
 }

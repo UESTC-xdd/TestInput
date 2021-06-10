@@ -24,7 +24,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7750511384302942420}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.572, z: 0}
+  m_LocalPosition: {x: 0, y: -0.603, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 7750511384994646887}
@@ -40,8 +40,8 @@ GameObject:
   m_Component:
   - component: {fileID: 7750511384994646887}
   - component: {fileID: 7750511384994646883}
-  - component: {fileID: 7750511384994646882}
   - component: {fileID: 7750511384994646881}
+  - component: {fileID: 6297479522807632845}
   - component: {fileID: 7750511384994646876}
   - component: {fileID: 7750511384994646877}
   - component: {fileID: 7750511384994646880}
@@ -119,22 +119,6 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
---- !u!70 &7750511384994646882
-CapsuleCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7750511384994646886}
-  m_Enabled: 1
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IsTrigger: 0
-  m_UsedByEffector: 0
-  m_UsedByComposite: 0
-  m_Offset: {x: 0, y: 0}
-  m_Size: {x: 0.875, y: 1.25}
-  m_Direction: 0
 --- !u!50 &7750511384994646881
 Rigidbody2D:
   serializedVersion: 4
@@ -156,6 +140,32 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 1
   m_Constraints: 4
+--- !u!61 &6297479522807632845
+BoxCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7750511384994646886}
+  m_Enabled: 1
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_UsedByComposite: 0
+  m_Offset: {x: 0, y: 0}
+  m_SpriteTilingProperty:
+    border: {x: 0, y: 0, z: 0, w: 0}
+    pivot: {x: 0.5, y: 0.5}
+    oldSize: {x: 0.875, y: 1.25}
+    newSize: {x: 0.875, y: 1.25}
+    adaptiveTilingThreshold: 0.5
+    drawMode: 0
+    adaptiveTiling: 0
+  m_AutoTiling: 0
+  serializedVersion: 2
+  m_Size: {x: 0.875, y: 1.25}
+  m_EdgeRadius: 0
 --- !u!114 &7750511384994646876
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -218,14 +228,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   JumpHeight: 6
-  Accelerate: 20
-  BrakeAccelerate: 20
-  WalkSpeed: 5
+  Accelerate: 30
+  BrakeAccelerate: 30
+  WalkSpeed: 6
   SprintSpeed: 12
-  MaxDropSpeed: -30
+  MaxDropSpeed: -20
   GroundDetectPoint: {fileID: 7750511384302942421}
-  GroundDetectWidth: 0.6
-  GroundDetectHeight: 0.2
+  GroundDetectWidth: 0.1
+  GroundDetectHeight: 0.1
   GroundLayers:
     serializedVersion: 2
     m_Bits: 256

@@ -29,6 +29,7 @@ public class AudioMgr : MonoBehaviour
 
     private void Awake()
     {
+        #region µ¥Àý
         if (instance == null)
         {
             instance = this;
@@ -43,6 +44,7 @@ public class AudioMgr : MonoBehaviour
         }
 
         DontDestroyOnLoad(gameObject);
+        #endregion
     }
 
     private void Start()
