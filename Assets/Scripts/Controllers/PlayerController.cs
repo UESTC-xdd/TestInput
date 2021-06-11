@@ -31,6 +31,12 @@ public class PlayerController : MonoBehaviour
     private Vector2 standColSize = new Vector2(0.875f, 1.25f);
     private Vector2 crouchColOffset = new Vector2(0, -0.1875f);
     private Vector2 crouchColSize = new Vector2(0.875f, 0.875f);
+    private Vector2 RespColOffset = new Vector2(0, 0.125f);
+    private Vector2 RespColSize = new Vector2(0.875f, 1);
+    private Vector2 JumpRespColOffset = new Vector2(0, 0);
+    private Vector2 JumpRespColSize = new Vector2(0.35f, 1.25f);
+    private Vector2 GroundDetectOriginSize = new Vector2(0.75f, 0.3f);
+    private Vector2 GroundDetectRespSize = new Vector2(0.3f, 0.3f);
 
     private Vector2 inputMove;
 
@@ -55,14 +61,16 @@ public class PlayerController : MonoBehaviour
 
     public bool CanJump { get; set; }
 
-    private Timer timer;
-    private Timer timer2;
-    private Timer timer3;
-    private Timer timer4;
+    private Timer timer;//用于跳跃延迟判断落地
+    private Timer timer2;//用于生成轨迹
+    private Timer timer3;//用于跳跃延迟输入
+    private Timer timer4;//用于跳跃输入宽容度
+    private Timer timer5;//用于按空格输入痕迹显示
     private bool respEnabled;
     [Header("宽容度输入")]
     public float fallRespTime;
-    public float inputBufferTime;
+    public float JumpInputBufferTime;
+    private bool IsJumpInputBuffered;
 
     private void Awake()
     {
@@ -89,11 +97,8 @@ public class PlayerController : MonoBehaviour
 
         //Update宽容度输入状态
         UpdateRespState();
-    }
-
-    private void UpdateRespState()
-    {
-        respEnabled = UIMgr.Instance.RespControlToggle.isOn;
+        UpdateJumpInputBuffer();
+        UpdateRespCol();
     }
 
     private void FixedUpdate()
@@ -102,18 +107,110 @@ public class PlayerController : MonoBehaviour
         UpdateTrail();
     }
 
+    private void UpdateJumpInputBuffer()
+    {
+        if (CanJump)
+        {
+            if (IsJumpInputBuffered && timer4.IsCounting)
+            {
+                PlayerJump();
+                IsJumpInputBuffered = false;
+                timer4.Stop();
+                return;
+            }
+        }
+    }
+
+    private void UpdateRespState()
+    {
+        respEnabled = UIMgr.Instance.RespControlToggle.isOn;
+    }
+
+    private void UpdateRespCol()
+    {
+        if (respEnabled)
+        {
+            //蹲下
+            if (inputMove.y < 0)
+            {
+                IsCrouching = true;
+                playerCol.offset = crouchColOffset;
+                playerCol.size = crouchColSize;
+            }
+            else if (inputMove.y >= 0)
+            {
+                if (!IsGrounded && !IsJumping && IsSprinting && !IsCrouching && Mathf.Abs(playerRigid.velocity.x) >= SprintSpeed - 0.5f)
+                {
+                    playerCol.offset = RespColOffset;
+                    playerCol.size = RespColSize;
+                }
+                else
+                {
+                    IsCrouching = false;
+                    playerCol.offset = standColOffset;
+                    playerCol.size = standColSize;
+                }
+            }
+
+        }
+        else
+        {
+            //蹲下
+            if (inputMove.y < 0)
+            {
+                IsCrouching = true;
+                playerCol.offset = crouchColOffset;
+                playerCol.size = crouchColSize;
+            }
+            else if (inputMove.y >= 0)
+            {
+                IsCrouching = false;
+                playerCol.offset = standColOffset;
+                playerCol.size = standColSize;
+            }
+        }
+
+        //跳跃时碰撞体变窄
+        if(respEnabled)
+        {
+            if (IsJumping && playerRigid.velocity.y > 0)
+            {
+                UpdateGroundDetect(GroundDetectRespSize);
+                playerCol.size = new Vector2(JumpRespColSize.x, playerCol.size.y);
+            }
+            else if (playerRigid.velocity.y <= 0)
+            {
+                if (GroundDetectWidth != GroundDetectOriginSize.x)
+                    UpdateGroundDetect(GroundDetectOriginSize);
+
+                if (playerCol.size.x != standColSize.x)
+                    playerCol.size = new Vector2(standColSize.x, playerCol.size.y);
+            }
+        }
+        else
+        {
+            if(GroundDetectWidth != GroundDetectOriginSize.x)
+                UpdateGroundDetect(GroundDetectOriginSize);
+
+            if(playerCol.size.x!= standColSize.x)
+                playerCol.size = new Vector2(standColSize.x, playerCol.size.y);
+        }
+
+    }
+
     #region 轨迹逻辑
     private void UpdateTrail()
     {
-        if(UIMgr.Instance.ShowTrailToggle.isOn)
+        if (UIMgr.Instance.ShowTrailToggle.isOn)
         {
-            if (playerRigid.velocity.magnitude > 0.1f) {
+            if (playerRigid.velocity.magnitude > 0.1f)
+            {
                 if (timer2 == null)
                 {
                     timer2 = Util.Instance.BeginTimer(0.1f);
                     timer2.OnCountStop += GenerateOneTrail;
                 }
-                if(!timer2.IsCounting)
+                if (!timer2.IsCounting)
                 {
                     timer2.ResetTimer(0.1f);
                 }
@@ -121,7 +218,7 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            if(timer2!=null)
+            if (timer2 != null)
             {
                 timer2.Stop();
             }
@@ -142,7 +239,7 @@ public class PlayerController : MonoBehaviour
         //跳跃
         input.actions["Jump"].performed += ctx =>
         {
-            if(respEnabled)
+            if (respEnabled)
             {
                 if (CanJump)
                 {
@@ -150,19 +247,27 @@ public class PlayerController : MonoBehaviour
                 }
                 else
                 {
-                    if (timer4 == null)
+                    if (IsJumping)
                     {
-                        timer4 = Util.Instance.BeginTimer(inputBufferTime);
-                    }
-                    else
-                    {
-
+                        if (timer4 == null)
+                        {
+                            timer4 = Util.Instance.BeginTimer(JumpInputBufferTime);
+                            timer4.OnCountStop += () =>
+                              {
+                                  IsJumpInputBuffered = false;
+                              };
+                        }
+                        else
+                        {
+                            timer4.ResetTimer(JumpInputBufferTime);
+                        }
+                        IsJumpInputBuffered = true;
                     }
                 }
             }
             else
             {
-                if(CanJump)
+                if (CanJump)
                 {
                     PlayerJump();
                 }
@@ -213,20 +318,6 @@ public class PlayerController : MonoBehaviour
         else
         {
             IsWalking = false;
-        }
-
-        //蹲下
-        if (inputMove.y < 0)
-        {
-            IsCrouching = true;
-            playerCol.offset = crouchColOffset;
-            playerCol.size = crouchColSize;
-        }
-        else if (inputMove.y >= 0)
-        {
-            IsCrouching = false;
-            playerCol.offset = standColOffset;
-            playerCol.size = standColSize;
         }
 
         //朝向
@@ -378,17 +469,18 @@ public class PlayerController : MonoBehaviour
 
     private void UpdateGroundedState()
     {
-        //if (Physics2D.BoxCast(GroundDetectPoint.position, new Vector2(GroundDetectWidth, GroundDetectHeight), 0, transform.right, Mathf.Infinity, GroundLayers))
-        //{
-        //    Debug.Log("在地上");
-        //    IsGrounded = true;
-        //}
-        if (Physics2D.Raycast(GroundDetectPoint.position, -transform.up, GroundDetectHeight, GroundLayers))
+        if (Physics2D.BoxCast(GroundDetectPoint.position, new Vector2(GroundDetectWidth, GroundDetectHeight), 0, -transform.up, 0, GroundLayers))
         {
+            //Debug.Log("在地上");
             IsGrounded = true;
         }
+        //if (Physics2D.Raycast(GroundDetectPoint.position, -transform.up, GroundDetectHeight, GroundLayers))
+        //{
+        //    IsGrounded = true;
+        //}
         else
         {
+            //Debug.Log("不在地上");
             IsGrounded = false;
         }
 
@@ -398,7 +490,7 @@ public class PlayerController : MonoBehaviour
     {
         if (respEnabled)
         {
-            if(!IsJumping && !IsGrounded)
+            if (!IsJumping && !IsGrounded)
             {
                 if (timer3 == null)
                 {
@@ -444,15 +536,15 @@ public class PlayerController : MonoBehaviour
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.green;
-        //Gizmos.DrawCube(GroundDetectPoint.position, new Vector3(GroundDetectWidth, GroundDetectHeight, 0));
-        Gizmos.DrawLine(GroundDetectPoint.position, GroundDetectPoint.position - transform.up * GroundDetectHeight);
+        Gizmos.DrawCube(GroundDetectPoint.position, new Vector3(GroundDetectWidth, GroundDetectHeight, 0));
+        //Gizmos.DrawLine(GroundDetectPoint.position, GroundDetectPoint.position - transform.up * GroundDetectHeight);
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
         if (collision.gameObject.layer == LayerMask.NameToLayer("Ground"))
         {
-            if(timer!=null && !timer.IsCounting)
+            if (timer != null && !timer.IsCounting)
             {
                 foreach (ContactPoint2D contactPoint in collision.contacts)
                 {
@@ -470,7 +562,7 @@ public class PlayerController : MonoBehaviour
     {
         if (collision.gameObject.layer == LayerMask.NameToLayer("Ground"))
         {
-            if(timer != null && !timer.IsCounting)
+            if (timer != null && !timer.IsCounting)
             {
                 foreach (ContactPoint2D contactPoint in collision.contacts)
                 {
@@ -483,5 +575,11 @@ public class PlayerController : MonoBehaviour
             }
 
         }
+    }
+
+    private void UpdateGroundDetect(Vector2 groundDetectSize)
+    {
+        GroundDetectWidth = groundDetectSize.x;
+        GroundDetectHeight = groundDetectSize.y;
     }
 }

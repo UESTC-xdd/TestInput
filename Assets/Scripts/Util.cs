@@ -59,19 +59,26 @@ public class Util : MonoBehaviour
 
     public Timer BeginTimer(float countTime)
     {
-        foreach (var timer in Timers)
-        {
-            if(!timer.IsCounting)
-            {
-                timer.curTime = countTime;
-                timer.IsCounting = true;
-                return timer;
-            }
-        }
-
+        //foreach (var timer in Timers)
+        //{
+        //    if(!timer.IsCounting)
+        //    {
+        //        timer.curTime = countTime;
+        //        timer.IsCounting = true;
+        //        return timer;
+        //    }
+        //}
         Timer newTimer = new Timer(countTime);
         Timers.Add(newTimer);
         return newTimer;
+    }
+
+    public void ReleaseTimer(Timer timer)
+    {
+        if(Timers.Remove(timer))
+        {
+            Debug.Log(" Õ∑≈Timer");
+        }
     }
 }
 
@@ -95,7 +102,7 @@ public class Timer
 
     public void Stop()
     {
-        curTime = 0;
         IsCounting = false;
+        curTime = 0;
     }
 }
