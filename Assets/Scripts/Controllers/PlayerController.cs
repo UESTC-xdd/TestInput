@@ -208,6 +208,7 @@ public class PlayerController : MonoBehaviour
                 if (timer2 == null)
                 {
                     timer2 = Util.Instance.BeginTimer(0.1f);
+                    timer2.OnCountStop -= GenerateOneTrail;
                     timer2.OnCountStop += GenerateOneTrail;
                 }
                 if (!timer2.IsCounting)
@@ -218,7 +219,7 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            if (timer2 != null)
+            if (timer2 != null && timer2.IsCounting)
             {
                 timer2.Stop();
             }

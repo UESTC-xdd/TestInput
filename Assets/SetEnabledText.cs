@@ -23,8 +23,6 @@ public class SetEnabledText : MonoBehaviour
                     targetText.text = "Disabled";
                     break;
                 }
-            default:
-                break;
         }
     }
 }

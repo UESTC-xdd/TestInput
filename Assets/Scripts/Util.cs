@@ -104,5 +104,6 @@ public class Timer
     {
         IsCounting = false;
         curTime = 0;
+        OnCountStop();
     }
 }
