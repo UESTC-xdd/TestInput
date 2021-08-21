@@ -33,7 +33,7 @@ public class PlayerController : MonoBehaviour
     private Vector2 crouchColSize = new Vector2(0.875f, 0.875f);
     private Vector2 RespColOffset = new Vector2(0, 0.125f);
     private Vector2 RespColSize = new Vector2(0.875f, 1);
-    private Vector2 JumpRespColOffset = new Vector2(0, 0);
+    //private Vector2 JumpRespColOffset = new Vector2(0, 0);
     private Vector2 JumpRespColSize = new Vector2(0.35f, 1.25f);
     private Vector2 GroundDetectOriginSize = new Vector2(0.75f, 0.3f);
     private Vector2 GroundDetectRespSize = new Vector2(0.3f, 0.3f);
