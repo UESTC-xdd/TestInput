@@ -248,7 +248,7 @@ public class PlayerController : MonoBehaviour
                 }
                 else
                 {
-                    if (IsJumping)
+                    if (!IsGrounded)
                     {
                         if (timer4 == null)
                         {
