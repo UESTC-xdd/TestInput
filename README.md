@@ -1,10 +1,10 @@
 # TestInput
-# 验证GDC：如何增加游戏操作的宽容度  
+# Implement of GDC：Forgiveness Mechanics: Reading Minds for Responsive Gameplay 
 ![](./README/Title.png)  
 Unity Demo  
-# 已实现功能：  
-1.威利狼跳  
-2.跳跃输入缓冲  
-3.冲刺过一格空隙  
-4.一格顶头跳跃优化  
-5.跳跃一格障碍优化（因为马里奥图片是1.5格，所以demo里面障碍空隙是2格）  
+# Implemented mechanics：  
+1.Coyote Jump  
+2.Jump Input Buffer  
+3.Pass one-grid holes  
+4.One-grid jump aligning   
+5.Hitbox Pinching  
